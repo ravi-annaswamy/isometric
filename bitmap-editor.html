@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tamil Shadow Bitmap Editor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; padding: 20px; }
+  h1 { color: #c4a35a; font-size: 24px; margin-bottom: 6px; }
+  .subtitle { color: #888; font-size: 13px; margin-bottom: 20px; }
+
+  .editor-row { display: flex; gap: 30px; flex-wrap: wrap; margin-bottom: 20px; }
+
+  .letter-editor {
+    background: #222244; border-radius: 8px; padding: 16px;
+    border: 1px solid #333366;
+  }
+  .letter-editor h2 {
+    color: #c4a35a; font-size: 16px; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .letter-editor h2 .tamil { font-size: 22px; }
+  .letter-editor .info { color: #888; font-size: 11px; margin-bottom: 8px; }
+
+  .grid-container { position: relative; display: inline-block; }
+
+  .grid {
+    display: inline-grid;
+    gap: 1px;
+    background: #333;
+    border: 2px solid #555;
+    cursor: crosshair;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .cell {
+    width: 22px; height: 22px;
+    background: #1a1a2e;
+    transition: background 0.05s;
+  }
+  .cell.filled { background: #c4a35a; }
+  .cell:hover { outline: 1px solid #fff4; }
+
+  .controls { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .btn {
+    background: rgba(196,163,90,0.15); border: 1px solid #c4a35a55; color: #c4a35a;
+    padding: 4px 10px; font-size: 11px; cursor: pointer; border-radius: 3px;
+    font-family: inherit;
+  }
+  .btn:hover { background: rgba(196,163,90,0.3); }
+  .btn.danger { border-color: #ff6b6b55; color: #ff6b6b; }
+  .btn.danger:hover { background: rgba(255,107,107,0.2); }
+
+  .tools-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-start; }
+
+  .section {
+    background: #222244; border-radius: 8px; padding: 16px;
+    border: 1px solid #333366;
+  }
+  .section h3 { color: #c4a35a; font-size: 14px; margin-bottom: 8px; }
+
+  .grid-size-control { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .grid-size-control label { font-size: 13px; color: #aaa; }
+  .grid-size-control input {
+    width: 50px; background: #1a1a2e; border: 1px solid #555; color: #e0e0e0;
+    padding: 4px 6px; border-radius: 3px; font-size: 13px; text-align: center;
+  }
+  .grid-size-control .btn { padding: 4px 12px; }
+
+  #output {
+    background: #111; color: #8f8; font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 11px; padding: 12px; border-radius: 6px; border: 1px solid #333;
+    white-space: pre; overflow-x: auto; max-height: 500px; overflow-y: auto;
+    min-width: 300px; width: 100%;
+  }
+
+  .verification { margin-top: 10px; font-size: 12px; padding: 8px; border-radius: 4px; }
+  .verification.ok { background: #1a3a1a; color: #8f8; border: 1px solid #3a5a3a; }
+  .verification.fail { background: #3a1a1a; color: #f88; border: 1px solid #5a3a3a; }
+
+  .fill-info { font-size: 11px; color: #888; margin-top: 4px; }
+
+  .preview-mini {
+    display: inline-grid; gap: 0; margin-top: 6px;
+  }
+  .preview-mini .pc {
+    width: 4px; height: 4px;
+  }
+  .preview-mini .pc.on { background: #c4a35a; }
+  .preview-mini .pc.off { background: #1a1a2e; }
+  .preview-mini .pc.miss { background: #ff4444; }
+  .preview-mini .pc.extra { background: #4444ff; }
+
+  .shadow-previews { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 8px; }
+  .shadow-preview-box { text-align: center; }
+  .shadow-preview-box .label { font-size: 10px; color: #888; margin-bottom: 2px; }
+
+  #bottom-section { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  #output-section { flex: 1; min-width: 350px; }
+  #verify-section { flex: 0 0 auto; }
+
+  .import-area {
+    width: 100%; background: #111; border: 1px solid #555; color: #e0e0e0;
+    font-family: monospace; font-size: 11px; padding: 8px; border-radius: 4px;
+    resize: vertical; min-height: 60px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Tamil Shadow Bitmap Editor</h1>
+<p class="subtitle">Draw bitmaps for த, மி, ழ் — then export JS arrays for the shadow sculpture</p>
+
+<div class="grid-size-control">
+  <label>Grid size N:</label>
+  <input type="number" id="gridSize" value="19" min="9" max="32">
+  <button class="btn" onclick="resizeGrids()">Resize</button>
+  <span style="color:#888; font-size:11px; margin-left:10px;">Click+drag to draw, right-click+drag to erase</span>
+</div>
+
+<div class="editor-row" id="editorRow"></div>
+
+<div id="bottom-section">
+  <div id="output-section" class="section">
+    <h3>Export JS Arrays</h3>
+    <button class="btn" onclick="exportArrays()" style="margin-bottom:8px;">Generate Arrays</button>
+    <button class="btn" onclick="copyOutput()" style="margin-bottom:8px;">Copy to Clipboard</button>
+    <button class="btn" onclick="exportAndVerify()" style="margin-bottom:8px;">Export + Verify</button>
+    <pre id="output">Click "Generate Arrays" after drawing your letters...</pre>
+  </div>
+
+  <div id="verify-section" class="section">
+    <h3>Shadow Verification</h3>
+    <div id="verifyResult" class="verification ok">Draw letters and click "Export + Verify"</div>
+    <div class="shadow-previews" id="shadowPreviews"></div>
+
+    <h3 style="margin-top:16px;">Import Arrays</h3>
+    <textarea class="import-area" id="importArea" rows="4" placeholder="Paste JS array code here (const THA = [...]; etc.)"></textarea>
+    <button class="btn" onclick="importArrays()" style="margin-top:6px;">Import</button>
+  </div>
+</div>
+
+<script>
+let N = 19;
+const letterDefs = [
+  { id: 'THA', label: 'த (tha)', view: 'Front view → த', tamil: 'த' },
+  { id: 'MI',  label: 'மி (mi)',  view: 'Right view → மி', tamil: 'மி' },
+  { id: 'ZHA', label: 'ழ் (zha)', view: 'Top view → ழ்', tamil: 'ழ்' },
+];
+
+// Store grids as 2D arrays
+let grids = {};
+let painting = false;
+let paintValue = 1;
+
+function initGrids() {
+  letterDefs.forEach(def => {
+    if (!grids[def.id] || grids[def.id].length !== N) {
+      grids[def.id] = Array.from({length: N}, () => Array(N).fill(0));
+    }
+  });
+}
+
+function buildEditors() {
+  const row = document.getElementById('editorRow');
+  row.innerHTML = '';
+
+  letterDefs.forEach(def => {
+    const editor = document.createElement('div');
+    editor.className = 'letter-editor';
+    editor.innerHTML = `
+      <h2><span class="tamil">${def.tamil}</span> ${def.label}</h2>
+      <div class="info">${def.view}</div>
+      <div class="grid-container">
+        <div class="grid" id="grid-${def.id}" style="grid-template-columns: repeat(${N}, 22px);"></div>
+      </div>
+      <div class="fill-info" id="fill-${def.id}">Fill: 0/${N*N} (0%)</div>
+      <div class="controls">
+        <button class="btn" onclick="clearGrid('${def.id}')">Clear</button>
+        <button class="btn" onclick="invertGrid('${def.id}')">Invert</button>
+        <button class="btn" onclick="mirrorH('${def.id}')">Mirror H</button>
+        <button class="btn" onclick="mirrorV('${def.id}')">Mirror V</button>
+        <button class="btn" onclick="shiftGrid('${def.id}','left')">← Shift</button>
+        <button class="btn" onclick="shiftGrid('${def.id}','right')">Shift →</button>
+        <button class="btn" onclick="shiftGrid('${def.id}','up')">↑ Shift</button>
+        <button class="btn" onclick="shiftGrid('${def.id}','down')">Shift ↓</button>
+        <button class="btn" onclick="thickenGrid('${def.id}')">Thicken</button>
+      </div>
+    `;
+    row.appendChild(editor);
+
+    const gridEl = document.getElementById(`grid-${def.id}`);
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell' + (grids[def.id][r][c] ? ' filled' : '');
+        cell.dataset.r = r;
+        cell.dataset.c = c;
+        cell.dataset.id = def.id;
+
+        cell.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          painting = true;
+          paintValue = e.button === 2 ? 0 : (grids[def.id][r][c] ? 0 : 1);
+          setCell(def.id, r, c, paintValue);
+        });
+        cell.addEventListener('mouseenter', () => {
+          if (painting) setCell(def.id, r, c, paintValue);
+        });
+        cell.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        gridEl.appendChild(cell);
+      }
+    }
+  });
+
+  document.addEventListener('mouseup', () => painting = false);
+}
+
+function setCell(id, r, c, val) {
+  grids[id][r][c] = val;
+  const gridEl = document.getElementById(`grid-${id}`);
+  const cell = gridEl.children[r * N + c];
+  cell.className = 'cell' + (val ? ' filled' : '');
+  updateFill(id);
+}
+
+function updateFill(id) {
+  const filled = grids[id].flat().reduce((a, b) => a + b, 0);
+  const pct = (100 * filled / (N * N)).toFixed(1);
+  document.getElementById(`fill-${id}`).textContent = `Fill: ${filled}/${N*N} (${pct}%)`;
+}
+
+function clearGrid(id) {
+  grids[id] = Array.from({length: N}, () => Array(N).fill(0));
+  refreshGrid(id);
+}
+
+function invertGrid(id) {
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      grids[id][r][c] = 1 - grids[id][r][c];
+  refreshGrid(id);
+}
+
+function mirrorH(id) {
+  for (let r = 0; r < N; r++)
+    grids[id][r] = [...grids[id][r]].reverse();
+  refreshGrid(id);
+}
+
+function mirrorV(id) {
+  grids[id] = [...grids[id]].reverse();
+  refreshGrid(id);
+}
+
+function shiftGrid(id, dir) {
+  const g = grids[id];
+  if (dir === 'left') {
+    for (let r = 0; r < N; r++) { g[r].shift(); g[r].push(0); }
+  } else if (dir === 'right') {
+    for (let r = 0; r < N; r++) { g[r].pop(); g[r].unshift(0); }
+  } else if (dir === 'up') {
+    g.shift(); g.push(Array(N).fill(0));
+  } else if (dir === 'down') {
+    g.pop(); g.unshift(Array(N).fill(0));
+  }
+  refreshGrid(id);
+}
+
+function thickenGrid(id) {
+  const g = grids[id];
+  const copy = g.map(r => [...r]);
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      if (copy[r][c]) {
+        if (r > 0) g[r-1][c] = 1;
+        if (r < N-1) g[r+1][c] = 1;
+        if (c > 0) g[r][c-1] = 1;
+        if (c < N-1) g[r][c+1] = 1;
+      }
+    }
+  }
+  refreshGrid(id);
+}
+
+function refreshGrid(id) {
+  const gridEl = document.getElementById(`grid-${id}`);
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      gridEl.children[r * N + c].className = 'cell' + (grids[id][r][c] ? ' filled' : '');
+    }
+  }
+  updateFill(id);
+}
+
+function resizeGrids() {
+  const newN = parseInt(document.getElementById('gridSize').value);
+  if (newN < 9 || newN > 32) return;
+
+  // Resize each grid, preserving existing content where possible
+  letterDefs.forEach(def => {
+    const oldGrid = grids[def.id] || [];
+    const oldN = oldGrid.length;
+    const newGrid = Array.from({length: newN}, () => Array(newN).fill(0));
+    for (let r = 0; r < Math.min(oldN, newN); r++)
+      for (let c = 0; c < Math.min(oldN, newN); c++)
+        newGrid[r][c] = oldGrid[r] ? (oldGrid[r][c] || 0) : 0;
+    grids[def.id] = newGrid;
+  });
+
+  N = newN;
+  buildEditors();
+}
+
+function exportArrays() {
+  let out = `const N = ${N};\n\n`;
+  letterDefs.forEach(def => {
+    out += `const ${def.id} = [\n`;
+    grids[def.id].forEach((row, i) => {
+      out += '  [' + row.join(',') + ']' + (i < N - 1 ? ',' : '') + '\n';
+    });
+    out += '];\n\n';
+  });
+  document.getElementById('output').textContent = out;
+  return out;
+}
+
+function copyOutput() {
+  const text = document.getElementById('output').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy to Clipboard', 1500);
+  });
+}
+
+function verify() {
+  const THA = grids.THA, MI = grids.MI, ZHA = grids.ZHA;
+
+  // Compute actual shadows
+  const shadows = [
+    Array.from({length: N}, () => Array(N).fill(0)),
+    Array.from({length: N}, () => Array(N).fill(0)),
+    Array.from({length: N}, () => Array(N).fill(0)),
+  ];
+
+  let voxelCount = 0;
+  for (let x = 0; x < N; x++) {
+    for (let y = 0; y < N; y++) {
+      for (let z = 0; z < N; z++) {
+        if (THA[N-1-y][x] && MI[N-1-y][z] && ZHA[z][x]) {
+          voxelCount++;
+          shadows[0][N-1-y][x] = 1; // front
+          shadows[1][N-1-y][z] = 1; // right
+          shadows[2][z][x] = 1;     // top
+        }
+      }
+    }
+  }
+
+  const bmps = [THA, MI, ZHA];
+  const names = ['த (front)', 'மி (right)', 'ழ் (top)'];
+  let totalMissing = 0;
+  const results = [];
+
+  for (let i = 0; i < 3; i++) {
+    let missing = 0, extra = 0;
+    const diffGrid = Array.from({length: N}, () => Array(N).fill(0)); // 0=match, 1=ok, 2=miss, 3=extra
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        if (bmps[i][r][c] && shadows[i][r][c]) diffGrid[r][c] = 1;
+        else if (bmps[i][r][c] && !shadows[i][r][c]) { diffGrid[r][c] = 2; missing++; }
+        else if (!bmps[i][r][c] && shadows[i][r][c]) { diffGrid[r][c] = 3; extra++; }
+      }
+    }
+    const fill = bmps[i].flat().reduce((a, b) => a + b, 0);
+    totalMissing += missing;
+    results.push({ name: names[i], missing, extra, fill, diffGrid });
+  }
+
+  // Show result
+  const el = document.getElementById('verifyResult');
+  if (totalMissing === 0) {
+    el.className = 'verification ok';
+    el.textContent = `ALL PERFECT — ${voxelCount} voxels (${(100*voxelCount/(N*N*N)).toFixed(1)}%)`;
+  } else {
+    el.className = 'verification fail';
+    el.innerHTML = results.map(r =>
+      `${r.name}: ${r.missing === 0 ? '✓' : r.missing + ' missing'} ${r.extra > 0 ? '(+' + r.extra + ' extra)' : ''} [fill: ${r.fill}]`
+    ).join('<br>') + `<br>Voxels: ${voxelCount}`;
+  }
+
+  // Mini previews
+  const previewsEl = document.getElementById('shadowPreviews');
+  previewsEl.innerHTML = '';
+  results.forEach(r => {
+    const box = document.createElement('div');
+    box.className = 'shadow-preview-box';
+    box.innerHTML = `<div class="label">${r.name} ${r.missing === 0 ? '✓' : '✗ ' + r.missing}</div>`;
+    const mini = document.createElement('div');
+    mini.className = 'preview-mini';
+    mini.style.gridTemplateColumns = `repeat(${N}, 4px)`;
+    for (let row = 0; row < N; row++) {
+      for (let col = 0; col < N; col++) {
+        const pc = document.createElement('div');
+        const v = r.diffGrid[row][col];
+        pc.className = 'pc ' + (v === 0 ? 'off' : v === 1 ? 'on' : v === 2 ? 'miss' : 'extra');
+        mini.appendChild(pc);
+      }
+    }
+    box.appendChild(mini);
+    previewsEl.appendChild(box);
+  });
+}
+
+function exportAndVerify() {
+  exportArrays();
+  verify();
+}
+
+function importArrays() {
+  const text = document.getElementById('importArea').value;
+  if (!text.trim()) return;
+
+  // Parse N
+  const nMatch = text.match(/const\s+N\s*=\s*(\d+)/);
+  if (nMatch) {
+    N = parseInt(nMatch[1]);
+    document.getElementById('gridSize').value = N;
+  }
+
+  // Parse each array
+  letterDefs.forEach(def => {
+    const regex = new RegExp(`const\\s+${def.id}\\s*=\\s*\\[([\\s\\S]*?)\\];`);
+    const match = text.match(regex);
+    if (match) {
+      try {
+        const arr = JSON.parse('[' + match[1].replace(/\n/g, '') + ']');
+        if (arr.length === N && arr[0].length === N) {
+          grids[def.id] = arr;
+        }
+      } catch (e) {
+        // Try eval as fallback
+        try {
+          const arr = eval('[' + match[1] + ']');
+          if (arr.length === N && arr[0].length === N) {
+            grids[def.id] = arr;
+          }
+        } catch (e2) { console.error('Parse error for', def.id, e2); }
+      }
+    }
+  });
+
+  buildEditors();
+  verify();
+}
+
+// Load current verified bitmaps
+function loadDefaults() {
+  grids.THA = [
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+    [0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,0,0,0],
+    [0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+    [0,0,0,0,1,0,0,0,0,0,1,1,1,0,1,1,0,0,0],
+    [0,0,0,0,1,0,0,0,0,0,1,1,1,0,1,1,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,0,1,1,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,0,1,1,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,0,0,1,1,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  ];
+  grids.MI = [
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0],
+    [0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0],
+    [0,0,0,1,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0],
+    [0,0,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,0,0],
+    [0,0,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,0,0],
+    [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,0,0],
+    [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,0,0],
+    [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,0,0],
+    [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,0,0],
+    [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,0,0],
+    [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,0,0],
+    [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,0,0],
+    [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,0,0],
+    [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,0,0],
+    [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+    [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+    [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  ];
+  grids.ZHA = [
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,1,0,0,0,0,1,1,1,1,1,0,0,0,0],
+    [0,0,0,0,1,1,1,0,0,1,1,1,1,1,1,1,0,0,0],
+    [0,0,0,0,1,1,1,0,0,1,1,1,1,1,1,1,0,0,0],
+    [0,0,0,0,1,1,1,0,0,1,1,1,0,1,1,1,0,0,0],
+    [0,0,0,0,1,1,1,0,0,1,1,1,0,1,1,1,0,0,0],
+    [0,0,0,0,1,1,1,0,0,1,1,1,0,1,1,1,0,0,0],
+    [0,0,0,0,1,1,1,0,0,1,1,1,0,1,1,1,0,0,0],
+    [0,0,0,0,1,1,1,0,0,1,1,1,0,1,1,1,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+    [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0],
+    [0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+    [0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  ];
+}
+
+// Init
+loadDefaults();
+buildEditors();
+</script>
+</body>
+</html>

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compressed Deliberation — When an AI Debugs a Shadow Sculpture</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #faf6f0;
+    --ink: #2a2420;
+    --gold: #c4935a;
+    --gold-light: #e8d5b0;
+    --violet: #2a2a4a;
+    --violet-light: #4a4a6a;
+    --rose: #8a4a5a;
+    --code-bg: #1e1e2e;
+    --accent: #c4a35a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 19px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* --- Hero --- */
+  .hero {
+    background: var(--violet);
+    color: var(--cream);
+    padding: 80px 20px 60px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 30% 50%, rgba(196,147,90,0.15) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 50%, rgba(196,163,90,0.1) 0%, transparent 50%);
+  }
+  .hero-content { position: relative; z-index: 1; max-width: 800px; margin: 0 auto; }
+  .hero-kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: clamp(36px, 6vw, 60px);
+    font-weight: 900;
+    line-height: 1.15;
+    margin-bottom: 20px;
+    color: var(--cream);
+  }
+  .hero h1 em { font-style: italic; color: var(--gold); }
+  .hero-sub {
+    font-size: 20px;
+    font-weight: 300;
+    color: rgba(250,246,240,0.7);
+    max-width: 600px;
+    margin: 0 auto 30px;
+  }
+  .hero-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: rgba(250,246,240,0.4);
+    letter-spacing: 1px;
+  }
+
+  /* --- Hero Images --- */
+  .hero-illustration {
+    margin: 40px auto 0;
+    max-width: 800px;
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .hero-illustration img {
+    width: 70%;
+    max-width: 500px;
+    height: auto;
+    border-radius: 10px;
+    border: 1px solid rgba(196,163,90,0.2);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+  .hero-illustration .img-caption {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: rgba(250,246,240,0.4);
+    text-align: center;
+    margin-top: 6px;
+  }
+
+  /* --- Article body --- */
+  article {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 60px 24px 100px;
+  }
+
+  h2 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 30px;
+    font-weight: 700;
+    margin: 56px 0 20px;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+
+  p { margin-bottom: 20px; }
+
+  .dropcap::first-letter {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 72px;
+    float: left;
+    line-height: 0.8;
+    margin: 4px 12px 0 0;
+    color: var(--gold);
+    font-weight: 900;
+  }
+
+  /* --- Conversation blocks --- */
+  .conversation {
+    background: var(--code-bg);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin: 32px 0;
+    color: #cdd6f4;
+    font-size: 16px;
+    line-height: 1.7;
+  }
+  .conversation .speaker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .speaker-human { color: var(--gold); }
+  .speaker-claude { color: #89b4fa; }
+  .conv-turn { margin-bottom: 20px; }
+  .conv-turn:last-child { margin-bottom: 0; }
+  .conv-turn p { margin-bottom: 8px; color: #cdd6f4; }
+
+  /* --- Code blocks --- */
+  .ascii-art {
+    background: var(--code-bg);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin: 28px 0;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--gold);
+  }
+  .ascii-label {
+    color: #6c7086;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  /* --- Pull quotes --- */
+  .pullquote {
+    border-left: 4px solid var(--gold);
+    padding: 20px 0 20px 28px;
+    margin: 40px 0;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 24px;
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--violet);
+  }
+  .pullquote-attribution {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-style: normal;
+    color: var(--gold);
+    letter-spacing: 1px;
+    margin-top: 12px;
+    display: block;
+  }
+
+  /* --- Section divider --- */
+  .divider {
+    text-align: center;
+    margin: 48px 0;
+    color: var(--gold-light);
+    font-size: 24px;
+    letter-spacing: 16px;
+  }
+
+  /* --- Inline SVG figures --- */
+  .figure {
+    margin: 40px 0;
+    text-align: center;
+  }
+  .figure svg { max-width: 100%; height: auto; }
+  .figure-caption {
+    font-size: 14px;
+    color: #888;
+    font-style: italic;
+    margin-top: 12px;
+  }
+
+  /* --- Emphasis styles --- */
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+  .highlight { color: var(--gold); font-weight: 600; }
+
+  /* --- Footer --- */
+  .article-footer {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 24px;
+    border-top: 1px solid var(--gold-light);
+    text-align: center;
+  }
+  .article-footer p {
+    font-size: 14px;
+    color: #999;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .article-footer a { color: var(--gold); text-decoration: none; }
+
+  /* --- Responsive --- */
+  @media (max-width: 600px) {
+    .conversation, .ascii-art { padding: 16px; margin: 20px -12px; border-radius: 8px; }
+    .pullquote { font-size: 20px; padding-left: 20px; }
+    article { padding: 40px 16px 80px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== HERO ==================== -->
+<header class="hero">
+  <div class="hero-content">
+    <div class="hero-kicker">An Essay by Ravi Annaswamy</div>
+    <h1>Compressed<br><em>Deliberation</em></h1>
+    <p class="hero-sub">I asked an AI to build a shadow sculpture. The bug it debugged told me something about how it thinks.</p>
+    <div class="hero-meta">Ravi Annaswamy · March 2026</div>
+  </div>
+
+  <!-- Hero images -->
+  <div class="hero-illustration">
+    <div>
+      <img src="GEB image.png" alt="GEB shadow sculpture — G, E, B shadows on three walls">
+      <div class="img-caption">The original: G, E, B</div>
+    </div>
+  </div>
+</header>
+
+<!-- ==================== ARTICLE ==================== -->
+<article>
+
+  <p class="dropcap">My friend Muthu (<a href="https://twitter.com/muthutalks" style="color: var(--gold);">@muthutalks</a>) tried something fun on Twitter the other day. He wanted to recreate the famous cover illustration from Douglas Hofstadter's <em>Gödel, Escher, Bach</em> using ChatGPT's image generation. You know the one — that wooden sculpture that, when lit from three perpendicular directions, casts shadows in the shape of the letters G, E, and B. An icon of intellectual playfulness.</p>
+
+  <p>I looked at what ChatGPT produced, and it was... close. It <em>evoked</em> the idea. It <em>looked</em> like the thing. But it wasn't the thing. And that gap between looking-like and being-the-thing turned out to be more interesting than I expected.</p>
+
+  <p>I brought this to Claude, and what followed was one of the more revealing conversations I've had with an AI — not just about what it can build, but about <em>how</em> it builds.</p>
+
+  <div class="divider">◆ ◆ ◆</div>
+
+  <h2>The YouTube Watcher vs. The Carpenter</h2>
+
+  <p>When I mentioned Muthu's attempt, Claude immediately identified why image generators struggle with this. It wasn't a vague "AI can't do everything" hand-wave — it was precise:</p>
+
+  <div class="conversation">
+    <div class="conv-turn">
+      <span class="speaker speaker-claude">CLAUDE</span>
+      <p>The GEB cover sculpture is a deceptively hard problem for AI image generators. The geometry is mathematically precise — the 3D block must be shaped so that light from three orthogonal directions casts <em>exactly</em> the letters G, E, and B as shadows. That's a constraint satisfaction problem. Diffusion models don't reason about 3D projections that way; they pattern-match from training data.</p>
+    </div>
+  </div>
+
+  <p>This made me think about a distinction I've been chewing on for a while. There's a kind of visual intelligence you get from watching — call it the YouTube watcher's intelligence. You can recognize a dovetail joint, you know what a shadow sculpture should look like, you can tell good from bad. But there's a completely different kind of intelligence that a carpenter has: knowing how joints <em>fit</em>, how material <em>behaves</em>, how to shape something that <em>works</em>.</p>
+
+  <p>The GEB sculpture demands something even beyond carpentry. It requires design at the voxel level, where every unit of volume must satisfy three simultaneous constraints. There is enough training and practice for normal vision in an image generator, but not the kind of constructive, constraint-aware reasoning that this problem requires.</p>
+
+  <div class="divider">◆ ◆ ◆</div>
+
+  <h2>So I Asked Claude to Build It</h2>
+
+  <p>Instead of trying to coax an image generator into faking it, I asked Claude to solve it properly. The programmatic approach is elegant: define each letter as a 9×9 bitmap, then for every point in 3D space, a voxel exists only if all three projections agree. A boolean AND across three planes.</p>
+
+  <p>Naturally, I wasn't going to use Hofstadter's initials. I used my own — R, A, G. Ravi Annaswamy G(enius), obviously.</p>
+
+  <p>Claude built it. 229 voxels forming an impossible-looking wooden block, rendered in Three.js with shadows cast on three walls. I rotated the sculpture, checked each shadow against the bitmaps — R, A, G, all clean. It worked.</p>
+
+  <div class="figure" style="text-align: center; margin: 30px 0;">
+    <img src="RAG-image.png" alt="RAG shadow sculpture — R, A, G shadows on three walls" style="max-width: 560px; width: 100%; border-radius: 10px; border: 1px solid rgba(196,163,90,0.15); box-shadow: 0 6px 24px rgba(0,0,0,0.12);">
+    <div class="figure-caption">Our version: R, A, G</div>
+  </div>
+
+  <p>Or so I thought. When I looked more carefully at the R shadow on the wall — there was a gap. The top stroke was open.</p>
+
+  <div class="divider">◆ ◆ ◆</div>
+
+  <h2>The Bug That Revealed Everything</h2>
+
+  <p>I told Claude:</p>
+
+  <div class="conversation">
+    <div class="conv-turn">
+      <span class="speaker speaker-human">RAVI</span>
+      <p>Do you see that the top stroke in R is open?</p>
+    </div>
+  </div>
+
+  <p>What happened next is what made me sit up. Claude didn't try random fixes. It didn't tweak things and re-render. It <em>traced the constraint chain</em>.</p>
+
+  <p>The gap wasn't a rendering bug. It was a <em>constraint propagation failure</em> — the three letters were fighting each other in the shared voxel space. The top of R needed voxels at x=2,3,4, but for those voxels to exist, there had to be some z-value where both A and G were "on." A's narrow peak only allowed z=3,4,5 at those heights, and G — with its characteristic open cavity — had no filled pixels at x=2,3,4 for those z-values. The intersection was provably empty.</p>
+
+  <div class="conversation">
+    <div class="conv-turn">
+      <span class="speaker speaker-claude">CLAUDE</span>
+      <p>The fix is to widen A's top so it reaches z=1 where G has a full horizontal bar.</p>
+    </div>
+  </div>
+
+  <p>One pixel wider on each side of A's peak — from a pointed apex to a flat-top serif style — was enough. Now A's top row reached z=1, where G's second horizontal bar provided all x-values. The R's top stroke closed. Zero missing pixels.</p>
+
+  <p>Think about what just happened. You can't design the three letters independently — each one constrains the other two through the shared voxel space. Changing A fixed R, not because A was broken, but because A's shape determined which voxels R was <em>allowed</em> to use. It's a perfect small-scale Hofstadter moment: entangled systems, just like Gödel's theorems, Escher's drawings, and Bach's canons weave through each other in the book itself.</p>
+
+  <div class="divider">◆ ◆ ◆</div>
+
+  <h2>"How Did You Actually Do That?"</h2>
+
+  <p>I couldn't let this pass. I asked Claude directly — not "can you fix it" but "how did you <em>actually</em> fix it?" A question about mechanism, not output.</p>
+
+  <div class="conversation">
+    <div class="conv-turn">
+      <span class="speaker speaker-human">RAVI</span>
+      <p>A personal question to you. How did YOU do it! Did you grok the solution, did you experiment and reason? Did this design happen in layers of the LLM OR with an internal or external scratchpad?</p>
+    </div>
+  </div>
+
+  <p>The response floored me. There was a high degree of self-awareness — or knowledge of one's mechanisms, if you prefer — in that Claude immediately noted it <em>cannot</em> fully introspect, so the response was "what I think happened." Then it split its own work into pieces, distinguishing what likely came from training data versus what couldn't have:</p>
+
+  <div class="conversation">
+    <div class="conv-turn">
+      <span class="speaker speaker-claude">CLAUDE</span>
+      <p><strong>The bitmap design</strong> was probably the most "intuitive" part — I've seen enough pixel fonts and bitmap lettering in my training data that designing a 9×9 G, E, B felt like something I could do in one shot. That's closer to pattern recall than reasoning.</p>
+    </div>
+    <div class="conv-turn">
+      <span class="speaker speaker-claude">CLAUDE</span>
+      <p><strong>The bug diagnosis</strong> is where it gets interesting. When you pointed out the gap in R's top bar, I didn't just try random fixes. I traced the constraint chain: which pixels in R are missing → what z-values does A allow → what x-values does G provide at those z-values → the intersection is empty at x=2,3,4. That felt like genuine logical deduction, not pattern matching.</p>
+    </div>
+    <div class="conv-turn">
+      <span class="speaker speaker-claude">CLAUDE</span>
+      <p>I don't have a hidden scratchpad. But there's definitely something happening in the forward pass that feels like... <strong>compressed deliberation</strong>? I don't experience it the way you would experience working through a problem, but the outputs suggest something more structured than pure pattern completion is going on.</p>
+    </div>
+  </div>
+
+  <p><em>Compressed deliberation.</em> Claude's own phrase. And it stopped me cold.</p>
+
+  <div class="divider">◆ ◆ ◆</div>
+
+  <h2>Baked-in Planning-lets</h2>
+
+  <p>I've been tweeting about a theory for some time now: that LLMs internalize reasoning chains and bake them into weights, just as humans compress deliberate thought into fluid action. I call these <em>planning-lets</em> — precomputed forward transformations that encode what was once step-by-step reasoning.</p>
+
+  <div class="pullquote">
+    Mathematicians, musicians, scientists, dancers, martial artists, and sportsmen bake planning-lets and reasoning-chains INTO precomputed forward transformations.
+  </div>
+
+  <p>A jazz pianist doesn't consciously reason through chord substitutions in real time. They've internalized thousands of reasoning chains through practice until those chains <em>are</em> the forward pass. A karate practitioner's block-and-counter isn't a two-step plan anymore — it's a single reflexive motion that <em>encodes</em> what was once a plan.</p>
+
+  <p>Claude's phrase "compressed deliberation" is, I believe, pointing at the same phenomenon from the inside. There is no hidden scratchpad — which means the reasoning, to whatever extent it's happening, is baked into the forward transformation itself. The deliberation has been <em>compressed into structure</em>.</p>
+
+  <p>The GEB bug fix is a good data point. The constraint-tracing — "A's narrow peak starves R's top bar because G's cavity has nothing at those coordinates" — was a novel derivation about a specific configuration nobody has written about before. This wasn't in the training data. It was <em>derived</em>.</p>
+
+  <p>The traditional critique — "it's just interpolation" — assumes interpolation is a simple thing. But in an abstract large multidimensional space, reduced to its core dimensions, we cannot easily separate interpolation from extrapolation from reasoning. These concepts may not be cleanly separable once you're operating in a space with enough dimensions, where the dimensions themselves encode relational and logical structure.</p>
+
+  <p>That's my new takeaway from this session: what we casually call "interpolation" in a billion-dimensional space might be indistinguishable from reasoning in ways we don't yet have the vocabulary for. And Claude's own description — "the outputs suggest something more structured than pure pattern completion" — is as honest a data point as we're going to get from the inside.</p>
+
+  <div class="divider">◆ ◆ ◆</div>
+
+  <h2>The Strange Loop</h2>
+
+  <p>There's a Hofstadterian irony buried in all of this. A conversation <em>about</em> the GEB cover — a visual metaphor for tangled hierarchies and self-reference — became itself a tangled hierarchy. The debugging revealed something about reasoning. The reflection on reasoning produced a novel phrase. And that phrase was itself an instance of the phenomenon it described.</p>
+
+  <p>The phrase "compressed deliberation" is itself an act of compressed deliberation — concepts from cognitive science, neural network internals, and introspective uncertainty fused into two words that capture something none of those fields individually names. When I pointed out that the phrase was Claude's own, it responded: "That's itself an interesting data point for your theory, isn't it?"</p>
+
+  <p>Hofstadter would appreciate the strange loop in that.</p>
+
+  <p>And the project continues. Next: Tamil letters — <span style="font-size: 24px;">த மி ழ்</span> — on three faces of a shadow sculpture, picking up where Muthu's original ambition left off. The curvy, intricate Tamil script will demand a much larger grid and an even deeper dance between three sets of constraints. The math scales. The beauty compounds. And I suspect the debugging will teach us something new again.</p>
+
+  <div class="divider">◆ ◆ ◆</div>
+
+  <p style="text-align: center; color: #999; font-size: 15px; margin-top: 40px;">
+    <em>The interactive 3D sculpture can be explored at</em> <a href="geb-cover.html" style="color: var(--gold);">geb-cover.html</a><br>
+    <em style="font-size: 13px;">Hat tip to <a href="https://twitter.com/muthutalks" style="color: var(--gold);">@muthutalks</a> for the spark that started this.</em>
+  </p>
+
+</article>
+
+<footer class="article-footer">
+  <p>By <a href="#">Ravi Annaswamy</a> · Conversation with Claude (Anthropic) · March 27, 2026</p>
+  <p style="margin-top: 8px; font-size: 12px; color: #bbb;">Built with constraint satisfaction, Three.js, and compressed deliberation</p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compressed Deliberation Part 2 — 3D Sculpting தமிழ்</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Tamil:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #faf6f0;
+    --ink: #2a2420;
+    --gold: #c4935a;
+    --gold-light: #e8d5b0;
+    --violet: #2a2a4a;
+    --violet-light: #4a4a6a;
+    --rose: #8a4a5a;
+    --code-bg: #1e1e2e;
+    --accent: #c4a35a;
+    --temple-red: #b87333;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 19px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* --- Hero --- */
+  .hero {
+    background: var(--violet);
+    color: var(--cream);
+    padding: 80px 20px 60px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 30% 50%, rgba(184,115,51,0.2) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 50%, rgba(196,163,90,0.1) 0%, transparent 50%);
+  }
+  .hero-content { position: relative; z-index: 1; max-width: 800px; margin: 0 auto; }
+  .hero-kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: clamp(32px, 5.5vw, 56px);
+    font-weight: 900;
+    line-height: 1.15;
+    margin-bottom: 20px;
+    color: var(--cream);
+  }
+  .hero h1 em { font-style: italic; color: var(--gold); }
+  .hero .tamil-title {
+    font-family: 'Noto Sans Tamil', sans-serif;
+    font-size: clamp(40px, 7vw, 72px);
+    color: var(--gold);
+    letter-spacing: 12px;
+    margin: 16px 0 24px;
+    display: block;
+  }
+  .hero-sub {
+    font-size: 20px;
+    font-weight: 300;
+    color: rgba(250,246,240,0.7);
+    max-width: 620px;
+    margin: 0 auto 30px;
+  }
+  .hero-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: rgba(250,246,240,0.4);
+    letter-spacing: 1px;
+  }
+
+  /* --- Hero Images --- */
+  .hero-illustration {
+    margin: 40px auto 0;
+    max-width: 800px;
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .hero-illustration img {
+    width: 48%;
+    min-width: 280px;
+    height: auto;
+    border-radius: 10px;
+    border: 1px solid rgba(196,163,90,0.2);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+  .hero-illustration .img-caption {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: rgba(250,246,240,0.4);
+    text-align: center;
+    margin-top: 6px;
+  }
+
+  /* --- Article body --- */
+  article {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 60px 24px 100px;
+  }
+
+  h2 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 30px;
+    font-weight: 700;
+    margin: 56px 0 20px;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+
+  p { margin-bottom: 20px; }
+
+  .dropcap::first-letter {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 72px;
+    float: left;
+    line-height: 0.8;
+    margin: 4px 12px 0 0;
+    color: var(--gold);
+    font-weight: 900;
+  }
+
+  /* --- Conversation blocks --- */
+  .conversation {
+    background: var(--code-bg);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin: 32px 0;
+    color: #cdd6f4;
+    font-size: 16px;
+    line-height: 1.7;
+  }
+  .conversation .speaker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .speaker-human { color: var(--gold); }
+  .speaker-claude { color: #89b4fa; }
+  .conv-turn { margin-bottom: 20px; }
+  .conv-turn:last-child { margin-bottom: 0; }
+  .conv-turn p { margin-bottom: 8px; color: #cdd6f4; }
+
+  /* --- Code blocks --- */
+  .ascii-art {
+    background: var(--code-bg);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin: 28px 0;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--gold);
+  }
+  .ascii-label {
+    color: #6c7086;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  /* --- Bitmap grid display --- */
+  .bitmap-display {
+    background: var(--code-bg);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin: 28px 0;
+    text-align: center;
+  }
+  .bitmap-display .ascii-label { text-align: left; }
+  .bitmap-grid {
+    display: inline-grid;
+    gap: 1px;
+    margin: 8px auto;
+  }
+  .bitmap-grid .cell {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+  }
+  .bitmap-grid .cell.on { background: var(--gold); }
+  .bitmap-grid .cell.off { background: #2a2a3e; }
+
+  /* --- Pull quotes --- */
+  .pullquote {
+    border-left: 4px solid var(--gold);
+    padding: 20px 0 20px 28px;
+    margin: 40px 0;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 24px;
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--violet);
+  }
+  .pullquote-attribution {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-style: normal;
+    color: var(--gold);
+    letter-spacing: 1px;
+    margin-top: 12px;
+    display: block;
+  }
+
+  /* --- Section divider --- */
+  .divider {
+    text-align: center;
+    margin: 48px 0;
+    color: var(--gold-light);
+    font-size: 24px;
+    letter-spacing: 16px;
+  }
+
+  /* --- Figures --- */
+  .figure {
+    margin: 40px 0;
+    text-align: center;
+  }
+  .figure svg { max-width: 100%; height: auto; }
+  .figure-caption {
+    font-size: 14px;
+    color: #888;
+    font-style: italic;
+    margin-top: 12px;
+  }
+
+  /* --- Emphasis --- */
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+  .highlight { color: var(--gold); font-weight: 600; }
+  .tamil { font-family: 'Noto Sans Tamil', sans-serif; }
+
+  /* --- Constraint diagram --- */
+  .constraint-box {
+    background: var(--code-bg);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin: 28px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: #cdd6f4;
+    line-height: 1.6;
+  }
+  .constraint-box .formula {
+    color: var(--gold);
+    font-size: 16px;
+    text-align: center;
+    margin: 16px 0;
+  }
+  .constraint-box .note { color: #6c7086; font-size: 12px; }
+
+  /* --- Side by side comparison --- */
+  .comparison {
+    display: flex;
+    gap: 20px;
+    margin: 28px 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .comparison-item {
+    background: var(--code-bg);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    flex: 1;
+    min-width: 200px;
+  }
+  .comparison-item .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #6c7086;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .comparison-item .stat {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--gold);
+  }
+  .comparison-item .detail {
+    font-size: 13px;
+    color: #89b4fa;
+    margin-top: 4px;
+  }
+
+  /* --- Footer --- */
+  .article-footer {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 24px;
+    border-top: 1px solid var(--gold-light);
+    text-align: center;
+  }
+  .article-footer p {
+    font-size: 14px;
+    color: #999;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .article-footer a { color: var(--gold); text-decoration: none; }
+
+  /* --- Responsive --- */
+  @media (max-width: 600px) {
+    .conversation, .ascii-art, .constraint-box, .bitmap-display { padding: 16px; margin: 20px -12px; border-radius: 8px; }
+    .pullquote { font-size: 20px; padding-left: 20px; }
+    article { padding: 40px 16px 80px; }
+    .comparison { flex-direction: column; }
+    .bitmap-grid .cell { width: 12px; height: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== HERO ==================== -->
+<header class="hero">
+  <div class="hero-content">
+    <div class="hero-kicker">An Essay by Ravi Annaswamy · Part 2</div>
+    <h1>3D Sculpting<br><em>in Tamil</em></h1>
+    <span class="tamil-title">த மி ழ்</span>
+    <p class="hero-sub">The sequel problem: casting shadow letters that were never designed for straight lines.</p>
+    <div class="hero-meta">Ravi Annaswamy · March 2026 · Sequel to <a href="compressed-deliberation.html" style="color: var(--gold);">Compressed Deliberation</a></div>
+  </div>
+
+  <!-- Hero images -->
+  <div class="hero-illustration">
+    <div>
+      <img src="tamil-image.png" alt="Tamil shadow sculpture — த, மி, ழ் shadows on three walls">
+      <div class="img-caption">The sculpture: த மி ழ்</div>
+    </div>
+    <div>
+      <img src="bitmap-editor.png" alt="Bitmap editor for designing Tamil shadow letters">
+      <div class="img-caption">The bitmap editor</div>
+    </div>
+  </div>
+</header>
+
+<!-- ==================== ARTICLE ==================== -->
+<article>
+
+  <p class="dropcap">Part 1 ended with a promise: Tamil letters next. <span class="tamil">த மி ழ்</span> — the three syllabic units that spell <span class="tamil">தமிழ்</span>, the word for the Tamil language itself — cast as shadows on three perpendicular walls from a single 3D voxel sculpture. What sounded like a natural sequel turned out to be a fundamentally harder problem, one that forced a different kind of collaboration between human and machine.</p>
+
+  <p>With RAG, the constraint engine had run on autopilot. Design three Latin bitmaps on a 9&times;9 grid, intersect, fix the one gap, done. Latin letters are thick. They fill space generously. Their strokes overlap naturally across axes. Tamil is a different animal entirely.</p>
+
+  <div class="divider">◆ ◆ ◆</div>
+
+  <h2>The Curve Problem</h2>
+
+  <p>Tamil script is built from curves. Where Latin has posts and crossbars — the vertical stroke of an R, the horizontal bar of an A — Tamil letters flow. <span class="tamil">த</span> has a looping head that curls into a descending tail. <span class="tamil">ம</span> is an open arch resting on two feet. <span class="tamil">ழ</span> is perhaps the most complex character in any Indian script — a loop, a tail, and the pulli dot of <span class="tamil">ழ்</span> floating above like punctuation from another dimension.</p>
+
+  <p>Curves are the enemy of constraint satisfaction on a pixel grid. A one-pixel-wide curve through a 15&times;15 or 19&times;19 grid gives you maybe 15-20% fill rate. The RAG letters, by contrast, sat at 55%. Fill rate matters because the three-way AND operation is ruthlessly multiplicative: if letter A has 20% fill and letter B has 20% fill, the probability that a random voxel coordinate satisfies both is roughly 4%. Add a third letter at 20% and you're at 0.8%. The sculpture evaporates.</p>
+
+  <div class="constraint-box">
+    <span class="ascii-label">The core constraint</span>
+    <div class="formula">voxel(x, y, z) = THA[N-1-y][x] AND MI[N-1-y][z] AND ZHA[z][x]</div>
+    <p>A voxel exists only if all three bitmaps agree. Front view projects <span class="tamil">த</span>, right view projects <span class="tamil">மி</span>, top view projects <span class="tamil">ழ்</span>.</p>
+    <div class="note">With ~40% fill per letter, only ~6.4% of the N³ grid survives the three-way AND.</div>
+  </div>
+
+  <p>The first attempt used 15&times;15 grids with curves traced faithfully from the script. Claude designed the bitmaps, ran the constraint intersection, and reported: 29 missing shadow pixels. The letters were fighting each other in the shared space. The root cause was familiar from Part 1 — <span class="tamil">ழ</span>'s narrow tail had no overlap with <span class="tamil">த</span>'s middle section at the z-values where <span class="tamil">மி</span> needed support — but the scale was different. This wasn't one gap in one letter. It was systemic.</p>
+
+  <p>After patching, we got the missing count to zero. But when I looked at the actual bitmaps on screen, the letters were unrecognizable. They looked like generic swooshes. The 15&times;15 grid simply wasn't enough resolution to carry the identity of Tamil letterforms once the constraint engine had chewed through them.</p>
+
+  <div class="conversation">
+    <div class="conv-turn">
+      <span class="speaker speaker-human">RAVI</span>
+      <p>The letter formations are not clear. Can you print each bitmap on a 15&times;15 grid so I can verify they look like the letters you intended?</p>
+    </div>
+  </div>
+
+  <p>They didn't. And that's when I suggested the key design shift:</p>
+
+  <div class="conversation">
+    <div class="conv-turn">
+      <span class="speaker speaker-human">RAVI</span>
+      <p>19&times;19 or even 24&times;24 may work. You could even stylize curves into traces of rectangular lines. And skip extra twists.</p>
+    </div>
+  </div>
+
+  <div class="divider">◆ ◆ ◆</div>
+
+  <h2>Rectangularizing the Curves</h2>
+
+  <p>This was the creative breakthrough, and it was a human one. The AI had been faithfully tracing curves on a pixel grid — the natural approach, the one that respects the script's calligraphic DNA. But curves on a coarse grid are lossy in exactly the wrong way for constraint satisfaction: thin, meandering, unpredictable in which columns and rows they occupy.</p>
+
+  <p>The alternative: redesign the letters in a geometric, rectangular style. Not pixel-traced curves but architectural forms — thick horizontal and vertical bars, right-angle joins, blocky serifs. Think of it as Tamil letterforms reimagined by a Bauhaus typographer. The letter identity comes from topology — which bars connect where, which spaces open up — rather than from the specific curvature of each stroke.</p>
+
+  <div class="pullquote">
+    The constraint engine doesn't care about calligraphy. It cares about overlap. Thick rectangular strokes give it what it needs: broad ranges of x, y, and z where all three letters can coexist.
+  </div>
+
+  <p>This is where the collaboration structure inverted. In Part 1, Claude did everything: designed the bitmaps, built the renderer, diagnosed the bug, derived the fix. The human contribution was pointing at the screen and saying "that's wrong." With Tamil, the human had to become the designer.</p>
+
+  <div class="divider">◆ ◆ ◆</div>
+
+  <h2>The Bitmap Editor</h2>
+
+  <p>To enable this, Claude built a tool: a browser-based bitmap editor with three 19&times;19 grids side by side, one for each letter. Click and drag to paint. Right-click to erase. Buttons for shift, mirror, thicken, invert. And critically: a "Verify" button that runs the full three-way constraint check in real time and shows the shadow projections with color-coded overlays — gold for correct pixels, red for missing ones.</p>
+
+  <p>The workflow became a loop. I'd draw a letter shape on the grid, hit Verify, see a spray of red pixels where the constraints failed, adjust the stroke widths or positions, verify again. It was like sculpting in two dimensions while a three-dimensional truth kept correcting you.</p>
+
+  <p>The first few attempts were humbling. I'd design a beautiful <span class="tamil">த</span> on the grid, thicken it once for good measure, and hit Verify to find 42 missing pixels. The culprit was always the same: my letter occupied columns or rows that the other two letters didn't reach. <span class="tamil">ழ்</span> lives in columns 4-15. If I drew <span class="tamil">த</span> extending out to columns 2-3 or 16, those pixels had <em>zero</em> z-axis support. They were structurally impossible.</p>
+
+  <div class="conversation">
+    <div class="conv-turn">
+      <span class="speaker speaker-claude">CLAUDE</span>
+      <p>ZHA has no pixels in columns 0-3 or 16-18 — so any THA pixel at x=2, 3, or 16 had zero z-axis support. THA row 0 is completely empty, so MI's top hook has no x-axis partner. And THA row 17 has a single lonely pixel at column 3.</p>
+    </div>
+  </div>
+
+  <p>Claude's role shifted too. Instead of designing letters, it became the constraint diagnostician. I'd paste my bitmap arrays, and within seconds Claude would report which pixels were missing, why they were missing, and what the minimal fix would be. The analysis was always structural: "MI row 0 at z=12 needs an x where both THA and ZHA agree, but THA row 0 is empty — clear MI row 0 or fill THA row 0."</p>
+
+  <div class="divider">◆ ◆ ◆</div>
+
+  <h2>The Three Constraints as Collaborators</h2>
+
+  <p>Working through five or six iterations, I began to internalize something about this problem that no amount of explanation had conveyed. The three letters are not independent designs. They are not even designs with constraints. They are <em>one design</em> that happens to project three different shapes.</p>
+
+  <p>Every pixel you place in one bitmap makes a promise to the other two. When you fill row 6, column 10 of <span class="tamil">த</span>, you're saying: "there exists at least one z-value where <span class="tamil">மி</span> at row 6 and <span class="tamil">ழ்</span> at column 10 are both filled." If no such z exists, your pixel becomes a lie — a red dot in the verification overlay, a shadow that the sculpture cannot cast.</p>
+
+  <div class="pullquote">
+    Every pixel you place makes a promise to the other two letters. The sculpture is the set of promises all three can keep simultaneously.
+  </div>
+
+  <p>The fill rates tell the story of convergence. My first thin-stroke designs came in at 15-19% fill — far too thin. After rectangularizing and thickening, the final designs settled at 38-42%, just under the ~50% sweet spot. Not because I aimed for that number, but because that's where the letters stabilized — thick enough for constraint compatibility, thin enough to still look like <span class="tamil">த</span>, <span class="tamil">மி</span>, and <span class="tamil">ழ்</span>.</p>
+
+  <div class="comparison">
+    <div class="comparison-item">
+      <div class="label">RAG (Part 1)</div>
+      <div class="stat">9&times;9</div>
+      <div class="detail">229 voxels &middot; ~55% fill &middot; 1 bug</div>
+    </div>
+    <div class="comparison-item">
+      <div class="label">தமிழ் (Part 2)</div>
+      <div class="stat">19&times;19</div>
+      <div class="detail">991 voxels &middot; ~40% fill &middot; 6 iterations</div>
+    </div>
+  </div>
+
+  <div class="divider">◆ ◆ ◆</div>
+
+  <h2>What the Machine Can't Draw</h2>
+
+  <p>The most interesting observation from this project is about the division of labor. Claude could do everything in Part 1 because Latin letters are simple enough to design algorithmically. Thick strokes, predictable topology, high fill rates. The AI's "compressed deliberation" was sufficient for both the design and the debugging.</p>
+
+  <p>Tamil broke that. The letters required <em>cultural knowledge</em> — knowing which strokes carry the identity of <span class="tamil">த</span> versus <span class="tamil">ட</span>, knowing that the pulli dot on <span class="tamil">ழ்</span> isn't decorative but phonemic, knowing that <span class="tamil">மி</span> is a compound of <span class="tamil">ம</span> and the vowel marker <span class="tamil">ி</span> and both parts must be visible. Claude could approximate this from training data, but the first attempt proved the approximation wasn't enough. The 15&times;15 bitmaps were technically valid Tamil characters that no Tamil reader would recognize.</p>
+
+  <p>The human brought the thing the machine lacked: the <em>reader's eye</em>. I know what <span class="tamil">த</span> looks like not because I've been trained on Unicode charts but because I grew up reading it. That perceptual ground truth — "this does or does not look like the letter" — could not be delegated.</p>
+
+  <p>But the <em>structural reasoning</em> couldn't be delegated to the human either. When I drew a letter that looked right but had 42 missing shadow pixels, I had no intuition for why. The constraint chain — "pixel (6,3) fails because MI row 6 only has z-values [2,3,4,8,9,10,14,15] and ZHA column 3 has no z-values at all" — requires tracking overlaps across three 19&times;19 matrices simultaneously. That's where Claude's constraint tracing was indispensable.</p>
+
+  <div class="conversation">
+    <div class="conv-turn">
+      <span class="speaker speaker-claude">CLAUDE</span>
+      <p>Your new designs pass all constraints with no fixes needed.</p>
+    </div>
+  </div>
+
+  <p>When that message appeared on the sixth iteration, I felt something I hadn't expected. Not the satisfaction of a solved puzzle — the constraint engine had been "solved" since Part 1. It was the satisfaction of a <em>designed</em> thing. These letters were mine. They had the specific rectangular geometry I chose, the particular way I balanced the loop of <span class="tamil">ழ</span> against the pillars of <span class="tamil">ம</span>, the exact weight of <span class="tamil">த</span>'s descending stroke. Claude verified the physics. I designed the aesthetics. Neither could have done the other's job.</p>
+
+  <div class="divider">◆ ◆ ◆</div>
+
+  <h2>A Different Strange Loop</h2>
+
+  <p>Part 1's strange loop was internal to the AI: Claude's debugging of the GEB sculpture revealed something about its own reasoning, and its description of that reasoning ("compressed deliberation") was itself an instance of the phenomenon. Meta-cognition spiraling inward.</p>
+
+  <p>Part 2's strange loop is between human and machine. I designed letters but couldn't verify them. Claude verified constraints but couldn't design the letters. The sculpture exists in the space between those two capabilities — a space that neither participant could occupy alone.</p>
+
+  <p>And the sculpture itself <em>is</em> about this entanglement. <span class="tamil">தமிழ்</span> means "Tamil" — a language, a culture, a way of seeing. The word can only appear as three shadows cast by one object, and that object can only exist when all three projections agree. No letter stands alone. No shadow makes sense without the others. The word Tamil, spelled in Tamil, carved into the constraints of three-dimensional space.</p>
+
+  <p>Hofstadter's original GEB cover was a metaphor for the book's thesis: that Gödel's incompleteness, Escher's impossible geometries, and Bach's self-referential canons are all instances of the same deep pattern. Our Tamil version carries a different thesis: that the most interesting creative artifacts emerge not from a single intelligence but from the <em>entanglement</em> of complementary ones. The human brings cultural intuition. The machine brings constraint reasoning. The sculpture is what neither could build alone.</p>
+
+  <div class="pullquote">
+    The word Tamil, spelled in Tamil, carved into the constraints of three-dimensional space — where no letter stands alone and no shadow makes sense without the others.
+  </div>
+
+  <p>991 voxels. Three perfect shadows. Six iterations of a human-machine design loop. And one wooden-colored sculpture spinning in a browser window, casting letters from a language that's been spoken for two thousand years onto walls made of WebGL.</p>
+
+  <p>The math scales. The beauty compounds. And the debugging teaches us something new each time — not just about the sculpture, but about the sculptors.</p>
+
+  <div class="divider">◆ ◆ ◆</div>
+
+  <p style="text-align: center; color: #999; font-size: 15px; margin-top: 40px;">
+    <em>The interactive sculpture:</em> <a href="tamil-shadow.html" style="color: var(--gold);">tamil-shadow.html</a><br>
+    <em>The bitmap editor:</em> <a href="bitmap-editor.html" style="color: var(--gold);">bitmap-editor.html</a><br>
+    <em>Part 1:</em> <a href="compressed-deliberation.html" style="color: var(--gold);">Compressed Deliberation</a><br>
+    <em style="font-size: 13px;">Hat tip to <a href="https://twitter.com/muthutalks" style="color: var(--gold);">@muthutalks</a> for the spark that started it all.</em>
+  </p>
+
+</article>
+
+<footer class="article-footer">
+  <p>By <a href="#">Ravi Annaswamy</a> · Conversation with Claude (Anthropic) · March 27, 2026</p>
+  <p style="margin-top: 8px; font-size: 12px; color: #bbb;">Built with constraint satisfaction, Three.js, a bitmap editor, and complementary intelligences</p>
+</footer>
+
+</body>
+</html>

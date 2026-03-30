@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG — Ravi Annaswamy G(enius) 3D Shadow Sculpture</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; color: #e0e0e0; font-family: 'Georgia', serif; overflow: hidden; }
+  canvas { display: block; }
+  #info {
+    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+    text-align: center; pointer-events: none; z-index: 10;
+  }
+  #info h1 { font-size: 28px; letter-spacing: 6px; color: #c4a35a; margin-bottom: 4px; }
+  #info p { font-size: 13px; color: #888; }
+  #controls {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 12px; z-index: 10;
+  }
+  .btn {
+    background: rgba(196, 163, 90, 0.15); border: 1px solid #c4a35a; color: #c4a35a;
+    padding: 8px 18px; font-size: 13px; cursor: pointer; border-radius: 4px;
+    font-family: 'Georgia', serif; transition: all 0.2s;
+  }
+  .btn:hover { background: rgba(196, 163, 90, 0.3); }
+  .btn.active { background: rgba(196, 163, 90, 0.4); }
+  #shadow-labels {
+    position: absolute; top: 60px; right: 20px; z-index: 10;
+    font-size: 13px; color: #888; text-align: right;
+  }
+  #shadow-labels div { margin-bottom: 6px; }
+  #shadow-labels span { color: #c4a35a; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div id="info">
+  <h1>RAVI, ANNASWAMY, G(ENIUS)</h1>
+  <p>Interactive 3D shadow sculpture · Drag to rotate · Scroll to zoom</p>
+</div>
+
+<div id="shadow-labels">
+  <div>Front → <span>R</span></div>
+  <div>Right → <span>A</span></div>
+  <div>Top → <span>G</span></div>
+</div>
+
+<div id="controls">
+  <button class="btn" onclick="viewFront()">Front (R)</button>
+  <button class="btn" onclick="viewRight()">Right (A)</button>
+  <button class="btn" onclick="viewTop()">Top (G)</button>
+  <button class="btn" onclick="viewIso()">Isometric</button>
+  <button class="btn" id="toggleShadows" onclick="toggleShadows()">Shadows: ON</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ============================================================
+// GEB COVER RECREATION
+// Each letter is a 9x9 bitmap. A voxel at (x,y,z) exists iff:
+//   G[x][y] && E[z][y] && B[x][z]
+// Front view (along +Z) → G
+// Right view (along -X) → E
+// Top view  (along -Y) → B
+// ============================================================
+
+const N = 9; // grid size
+
+// Bitmaps: 1 = filled, 0 = empty. Row 0 = top of letter.
+// Each is N rows × N cols.
+
+// Front view → R
+const R_bmp = [
+  [1,1,1,1,1,1,1,1,0],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,0,0,0,0,1,1,1],
+  [1,1,0,0,0,0,1,1,1],
+  [1,1,1,1,1,1,1,1,0],
+  [1,1,1,1,1,1,1,0,0],
+  [1,1,0,0,1,1,0,0,0],
+  [1,1,0,0,0,1,1,0,0],
+  [1,1,0,0,0,0,1,1,0],
+];
+
+// Right view → A (flat-top serif style to ensure R projects fully)
+const A_bmp = [
+  [0,1,1,1,1,1,1,1,0],
+  [0,1,1,1,1,1,1,1,0],
+  [1,1,1,0,0,0,1,1,1],
+  [1,1,0,0,0,0,0,1,1],
+  [1,1,0,0,0,0,0,1,1],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,0,0,0,0,0,1,1],
+  [1,1,0,0,0,0,0,1,1],
+];
+
+// Top view → G
+const G_bmp = [
+  [0,1,1,1,1,1,1,1,0],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,0,0,0,0,0,0,0],
+  [1,1,0,0,0,0,0,0,0],
+  [1,1,0,0,0,1,1,1,1],
+  [1,1,0,0,0,0,1,1,1],
+  [1,1,0,0,0,0,0,1,1],
+  [1,1,1,1,1,1,1,1,1],
+  [0,1,1,1,1,1,1,1,0],
+];
+
+// Scene setup
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2e);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(14, 12, 14);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
+// Lighting
+const ambientLight = new THREE.AmbientLight(0x404060, 0.4);
+scene.add(ambientLight);
+
+// Key light (front-ish, casts G shadow)
+const frontLight = new THREE.DirectionalLight(0xfff5e0, 0.9);
+frontLight.position.set(0, 0, 20);
+frontLight.castShadow = true;
+frontLight.shadow.mapSize.width = 2048;
+frontLight.shadow.mapSize.height = 2048;
+frontLight.shadow.camera.near = 1;
+frontLight.shadow.camera.far = 60;
+frontLight.shadow.camera.left = -14;
+frontLight.shadow.camera.right = 14;
+frontLight.shadow.camera.top = 14;
+frontLight.shadow.camera.bottom = -14;
+scene.add(frontLight);
+
+// Side light (right, casts E shadow)
+const rightLight = new THREE.DirectionalLight(0xe0f0ff, 0.7);
+rightLight.position.set(-20, 0, 0);
+rightLight.castShadow = true;
+rightLight.shadow.mapSize.width = 2048;
+rightLight.shadow.mapSize.height = 2048;
+rightLight.shadow.camera.near = 1;
+rightLight.shadow.camera.far = 60;
+rightLight.shadow.camera.left = -14;
+rightLight.shadow.camera.right = 14;
+rightLight.shadow.camera.top = 14;
+rightLight.shadow.camera.bottom = -14;
+scene.add(rightLight);
+
+// Top light (casts B shadow)
+const topLight = new THREE.DirectionalLight(0xffe0f0, 0.6);
+topLight.position.set(0, 20, 0);
+topLight.castShadow = true;
+topLight.shadow.mapSize.width = 2048;
+topLight.shadow.mapSize.height = 2048;
+topLight.shadow.camera.near = 1;
+topLight.shadow.camera.far = 60;
+topLight.shadow.camera.left = -14;
+topLight.shadow.camera.right = 14;
+topLight.shadow.camera.top = 14;
+topLight.shadow.camera.bottom = -14;
+scene.add(topLight);
+
+// Shadow-receiving walls
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x2a2a4a, roughness: 0.9 });
+
+// Back wall (receives G shadow from front light)
+const backWall = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), wallMat.clone());
+backWall.position.set(0, 0, -18);
+backWall.receiveShadow = true;
+scene.add(backWall);
+
+// Left wall (receives E shadow from right light)
+const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), wallMat.clone());
+leftWall.position.set(18, 0, 0);
+leftWall.rotation.y = -Math.PI / 2;
+leftWall.receiveShadow = true;
+scene.add(leftWall);
+
+// Floor (receives B shadow from top light)
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), wallMat.clone());
+floor.position.set(0, -18, 0);
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// Build the voxel sculpture using merged geometry for performance
+const voxelGroup = new THREE.Group();
+const boxGeo = new THREE.BoxGeometry(0.95, 0.95, 0.95);
+
+// Wood-like material
+const woodMat = new THREE.MeshStandardMaterial({
+  color: 0xc4935a,
+  roughness: 0.6,
+  metalness: 0.05,
+});
+
+let voxelCount = 0;
+const half = (N - 1) / 2;
+
+for (let x = 0; x < N; x++) {
+  for (let y = 0; y < N; y++) {
+    for (let z = 0; z < N; z++) {
+      // Front view (looking along +Z): columns = x, rows = y → R
+      const inR = R_bmp[N - 1 - y][x];
+      // Right view (looking along -X): columns = z, rows = y → A
+      const inA = A_bmp[N - 1 - y][z];
+      // Top view (looking along -Y): columns = x, rows = z → G
+      const inG = G_bmp[z][x];
+
+      if (inR && inA && inG) {
+        const mesh = new THREE.Mesh(boxGeo, woodMat);
+        mesh.position.set(x - half, y - half, z - half);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        voxelGroup.add(mesh);
+        voxelCount++;
+      }
+    }
+  }
+}
+
+scene.add(voxelGroup);
+
+// --- Orbit Controls (inline, minimal) ---
+let isDragging = false;
+let prevMouse = { x: 0, y: 0 };
+let spherical = { theta: Math.PI / 4, phi: Math.PI / 4, radius: 22 };
+let targetSpherical = { ...spherical };
+let autoRotate = false;
+
+function updateCamera() {
+  spherical.theta += (targetSpherical.theta - spherical.theta) * 0.08;
+  spherical.phi += (targetSpherical.phi - spherical.phi) * 0.08;
+  spherical.radius += (targetSpherical.radius - spherical.radius) * 0.08;
+
+  const r = spherical.radius;
+  const sinPhi = Math.sin(spherical.phi);
+  camera.position.set(
+    r * sinPhi * Math.sin(spherical.theta),
+    r * Math.cos(spherical.phi),
+    r * sinPhi * Math.cos(spherical.theta)
+  );
+  camera.lookAt(0, 0, 0);
+}
+
+renderer.domElement.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  prevMouse = { x: e.clientX, y: e.clientY };
+});
+window.addEventListener('mouseup', () => isDragging = false);
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const dx = e.clientX - prevMouse.x;
+  const dy = e.clientY - prevMouse.y;
+  targetSpherical.theta -= dx * 0.005;
+  targetSpherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, targetSpherical.phi - dy * 0.005));
+  prevMouse = { x: e.clientX, y: e.clientY };
+});
+renderer.domElement.addEventListener('wheel', (e) => {
+  targetSpherical.radius = Math.max(8, Math.min(40, targetSpherical.radius + e.deltaY * 0.02));
+  e.preventDefault();
+}, { passive: false });
+
+// Touch support
+renderer.domElement.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    isDragging = true;
+    prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+});
+renderer.domElement.addEventListener('touchmove', (e) => {
+  if (!isDragging || e.touches.length !== 1) return;
+  const dx = e.touches[0].clientX - prevMouse.x;
+  const dy = e.touches[0].clientY - prevMouse.y;
+  targetSpherical.theta -= dx * 0.005;
+  targetSpherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, targetSpherical.phi - dy * 0.005));
+  prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  e.preventDefault();
+}, { passive: false });
+renderer.domElement.addEventListener('touchend', () => isDragging = false);
+
+// View presets
+function viewFront() {
+  targetSpherical.theta = 0;
+  targetSpherical.phi = Math.PI / 2;
+  targetSpherical.radius = 20;
+}
+function viewRight() {
+  targetSpherical.theta = Math.PI / 2;
+  targetSpherical.phi = Math.PI / 2;
+  targetSpherical.radius = 20;
+}
+function viewTop() {
+  targetSpherical.theta = 0;
+  targetSpherical.phi = 0.01;
+  targetSpherical.radius = 20;
+}
+function viewIso() {
+  targetSpherical.theta = Math.PI / 4;
+  targetSpherical.phi = Math.PI / 4;
+  targetSpherical.radius = 22;
+}
+
+let shadowsOn = true;
+function toggleShadows() {
+  shadowsOn = !shadowsOn;
+  frontLight.castShadow = shadowsOn;
+  rightLight.castShadow = shadowsOn;
+  topLight.castShadow = shadowsOn;
+  document.getElementById('toggleShadows').textContent = 'Shadows: ' + (shadowsOn ? 'ON' : 'OFF');
+}
+
+// Animation
+function animate() {
+  requestAnimationFrame(animate);
+  updateCamera();
+  renderer.render(scene, camera);
+}
+animate();
+
+// Resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

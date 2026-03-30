@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>தமிழ் — Tamil 3D Shadow Sculpture</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; color: #e0e0e0; font-family: 'Georgia', serif; overflow: hidden; }
+  canvas { display: block; }
+  #info {
+    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+    text-align: center; pointer-events: none; z-index: 10;
+  }
+  #info h1 { font-size: 32px; letter-spacing: 8px; color: #c4a35a; margin-bottom: 4px; }
+  #info p { font-size: 13px; color: #888; }
+  #controls {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 12px; z-index: 10; flex-wrap: wrap; justify-content: center;
+  }
+  .btn {
+    background: rgba(196, 163, 90, 0.15); border: 1px solid #c4a35a; color: #c4a35a;
+    padding: 8px 18px; font-size: 13px; cursor: pointer; border-radius: 4px;
+    font-family: 'Georgia', serif; transition: all 0.2s;
+  }
+  .btn:hover { background: rgba(196, 163, 90, 0.3); }
+  .btn.active { background: rgba(196, 163, 90, 0.4); }
+  #shadow-labels {
+    position: absolute; top: 60px; right: 20px; z-index: 10;
+    font-size: 14px; color: #888; text-align: right;
+  }
+  #shadow-labels div { margin-bottom: 6px; }
+  #shadow-labels span { color: #c4a35a; font-weight: bold; font-size: 18px; }
+  #stats {
+    position: absolute; bottom: 60px; left: 20px; z-index: 10;
+    font-size: 12px; color: #666;
+  }
+</style>
+</head>
+<body>
+
+<div id="info">
+  <h1>தமிழ்</h1>
+  <p>Interactive 3D shadow sculpture · Drag to rotate · Scroll to zoom</p>
+</div>
+
+<div id="shadow-labels">
+  <div>Front → <span>த</span></div>
+  <div>Right → <span>மி</span></div>
+  <div>Top → <span>ழ்</span></div>
+</div>
+
+<div id="controls">
+  <button class="btn" onclick="viewFront()">Front (த)</button>
+  <button class="btn" onclick="viewRight()">Right (மி)</button>
+  <button class="btn" onclick="viewTop()">Top (ழ்)</button>
+  <button class="btn" onclick="viewIso()">Isometric</button>
+  <button class="btn" id="toggleShadows" onclick="toggleShadows()">Shadows: ON</button>
+</div>
+
+<div id="stats"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ============================================================
+// தமிழ் (TAMIL) 3D SHADOW SCULPTURE — 19×19 VERIFIED BITMAPS
+// Each letter is a 19x19 bitmap. A voxel at (x,y,z) exists iff:
+//   THA[N-1-y][x] && MI[N-1-y][z] && ZHA[z][x]
+// Front view (along +Z) → த (tha)
+// Right view (along -X) → மி (mi)
+// Top view  (along -Y) → ழ் (zha)
+// All three projections verified perfect.
+// ============================================================
+
+const N = 19;
+
+// Front view → த (tha) — user-designed v3
+const THA = [
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+  [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+  [0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+  [0,0,0,0,0,1,1,0,0,0,1,1,1,0,0,0,0,0,0],
+  [0,0,0,0,0,1,1,0,0,0,1,1,1,0,0,0,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,1,0,0,0,0,0,1,1,0,0,1,1,0,0,0],
+  [0,0,0,0,1,0,0,0,0,0,1,1,0,0,1,1,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,1,1,0,0,1,1,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,1,1,0,0,1,1,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+];
+
+// Right view → மி (mi) — two pillars + base + ி mark
+const MI = [
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0],
+  [0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0],
+  [0,0,0,1,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0],
+  [0,0,1,1,1,0,0,0,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,1,1,1,0,0,0,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,0,0,0],
+  [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,0,0,0],
+  [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,0,0,0],
+  [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,0,0,0],
+  [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,0,0,0],
+  [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,0,0,0],
+  [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,0,0,0],
+  [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,0,0,0],
+  [0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,0,0,0],
+  [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+];
+
+// Top view → ழ் (zha with pulli) — user-designed v3, loop + tail
+const ZHA = [
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,1,0,0,0,0,1,1,1,1,1,0,0,0,0],
+  [0,0,0,0,1,1,1,0,0,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,1,1,1,0,0,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,1,1,1,0,0,1,1,1,0,1,1,1,0,0,0],
+  [0,0,0,0,1,1,1,0,0,1,1,1,0,1,1,1,0,0,0],
+  [0,0,0,0,1,1,1,0,0,1,1,1,0,1,1,1,0,0,0],
+  [0,0,0,0,1,1,1,0,0,1,1,1,0,1,1,1,0,0,0],
+  [0,0,0,0,1,1,1,0,0,1,1,1,0,1,1,1,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0],
+  [0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+];
+
+// ============================================================
+// VERIFICATION: Check that all shadow projections are correct
+// ============================================================
+function verifyProjections() {
+  const letters = [
+    { name: 'த (front)', bmp: THA, project: (x,y,z) => ({ row: N-1-y, col: x }), axis: 'z' },
+    { name: 'மி (right)', bmp: MI, project: (x,y,z) => ({ row: N-1-y, col: z }), axis: 'x' },
+    { name: 'ழ் (top)', bmp: ZHA, project: (x,y,z) => ({ row: z, col: x }), axis: 'y' },
+  ];
+
+  let totalIssues = 0;
+
+  letters.forEach(letter => {
+    const shadow = Array.from({length: N}, () => Array(N).fill(0));
+
+    for (let x = 0; x < N; x++) {
+      for (let y = 0; y < N; y++) {
+        for (let z = 0; z < N; z++) {
+          const inTHA = THA[N - 1 - y][x];
+          const inMI  = MI[N - 1 - y][z];
+          const inZHA = ZHA[z][x];
+          if (inTHA && inMI && inZHA) {
+            const { row, col } = letter.project(x, y, z);
+            shadow[row][col] = 1;
+          }
+        }
+      }
+    }
+
+    let missing = 0, extra = 0;
+    const missingPixels = [];
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        if (letter.bmp[r][c] === 1 && shadow[r][c] === 0) {
+          missing++;
+          missingPixels.push(`(r${r},c${c})`);
+        }
+        if (letter.bmp[r][c] === 0 && shadow[r][c] === 1) extra++;
+      }
+    }
+
+    const intended = letter.bmp.flat().reduce((a,b) => a+b, 0);
+    const actual = shadow.flat().reduce((a,b) => a+b, 0);
+
+    if (missing > 0 || extra > 0) {
+      console.warn(`${letter.name}: ${missing} missing, ${extra} extra (intended: ${intended}, actual: ${actual})`);
+      if (missing > 0) console.warn(`  Missing at: ${missingPixels.join(', ')}`);
+      totalIssues += missing;
+    } else {
+      console.log(`${letter.name}: ✓ Perfect projection (${intended} pixels)`);
+    }
+  });
+
+  return totalIssues;
+}
+
+const issues = verifyProjections();
+if (issues > 0) {
+  document.getElementById('stats').textContent = `⚠ ${issues} shadow pixel(s) need fixing — check console`;
+  document.getElementById('stats').style.color = '#ff6b6b';
+}
+
+// Scene setup
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2e);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(30, 25, 30);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
+// Lighting
+const ambientLight = new THREE.AmbientLight(0x404060, 0.4);
+scene.add(ambientLight);
+
+// Front light (casts த shadow on back wall)
+const frontLight = new THREE.DirectionalLight(0xfff5e0, 0.9);
+frontLight.position.set(0, 0, 45);
+frontLight.castShadow = true;
+frontLight.shadow.mapSize.width = 2048;
+frontLight.shadow.mapSize.height = 2048;
+frontLight.shadow.camera.near = 1;
+frontLight.shadow.camera.far = 100;
+frontLight.shadow.camera.left = -26;
+frontLight.shadow.camera.right = 26;
+frontLight.shadow.camera.top = 26;
+frontLight.shadow.camera.bottom = -26;
+scene.add(frontLight);
+
+// Right light (casts மி shadow on left wall)
+const rightLight = new THREE.DirectionalLight(0xe0f0ff, 0.7);
+rightLight.position.set(-45, 0, 0);
+rightLight.castShadow = true;
+rightLight.shadow.mapSize.width = 2048;
+rightLight.shadow.mapSize.height = 2048;
+rightLight.shadow.camera.near = 1;
+rightLight.shadow.camera.far = 100;
+rightLight.shadow.camera.left = -26;
+rightLight.shadow.camera.right = 26;
+rightLight.shadow.camera.top = 26;
+rightLight.shadow.camera.bottom = -26;
+scene.add(rightLight);
+
+// Top light (casts ழ் shadow on floor)
+const topLight = new THREE.DirectionalLight(0xffe0f0, 0.6);
+topLight.position.set(0, 45, 0);
+topLight.castShadow = true;
+topLight.shadow.mapSize.width = 2048;
+topLight.shadow.mapSize.height = 2048;
+topLight.shadow.camera.near = 1;
+topLight.shadow.camera.far = 100;
+topLight.shadow.camera.left = -26;
+topLight.shadow.camera.right = 26;
+topLight.shadow.camera.top = 26;
+topLight.shadow.camera.bottom = -26;
+scene.add(topLight);
+
+// Shadow-receiving walls
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x2a2a4a, roughness: 0.9 });
+
+// Back wall (receives த shadow from front light)
+const backWall = new THREE.Mesh(new THREE.PlaneGeometry(70, 70), wallMat.clone());
+backWall.position.set(0, 0, -35);
+backWall.receiveShadow = true;
+scene.add(backWall);
+
+// Left wall (receives மி shadow from right light)
+const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(70, 70), wallMat.clone());
+leftWall.position.set(35, 0, 0);
+leftWall.rotation.y = -Math.PI / 2;
+leftWall.receiveShadow = true;
+scene.add(leftWall);
+
+// Floor (receives ழ் shadow from top light)
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(70, 70), wallMat.clone());
+floor.position.set(0, -35, 0);
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// Build the voxel sculpture
+const voxelGroup = new THREE.Group();
+const boxGeo = new THREE.BoxGeometry(0.92, 0.92, 0.92);
+
+// Warm wood-like material with a slight reddish tint (reminiscent of Tamil temple wood)
+const woodMat = new THREE.MeshStandardMaterial({
+  color: 0xb87333,
+  roughness: 0.55,
+  metalness: 0.08,
+});
+
+let voxelCount = 0;
+const half = (N - 1) / 2;
+
+for (let x = 0; x < N; x++) {
+  for (let y = 0; y < N; y++) {
+    for (let z = 0; z < N; z++) {
+      // Front view (looking along +Z): columns = x, rows = y → த
+      const inTHA = THA[N - 1 - y][x];
+      // Right view (looking along -X): columns = z, rows = y → மி
+      const inMI = MI[N - 1 - y][z];
+      // Top view (looking along -Y): columns = x, rows = z → ழ்
+      const inZHA = ZHA[z][x];
+
+      if (inTHA && inMI && inZHA) {
+        const mesh = new THREE.Mesh(boxGeo, woodMat);
+        mesh.position.set(x - half, y - half, z - half);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        voxelGroup.add(mesh);
+        voxelCount++;
+      }
+    }
+  }
+}
+
+scene.add(voxelGroup);
+console.log(`Total voxels: ${voxelCount} / ${N*N*N} (${(100*voxelCount/(N*N*N)).toFixed(1)}%)`);
+document.getElementById('stats').textContent += ` | Voxels: ${voxelCount}`;
+
+// --- Orbit Controls (inline, minimal) ---
+let isDragging = false;
+let prevMouse = { x: 0, y: 0 };
+let spherical = { theta: Math.PI / 4, phi: Math.PI / 4, radius: 42 };
+let targetSpherical = { ...spherical };
+
+function updateCamera() {
+  spherical.theta += (targetSpherical.theta - spherical.theta) * 0.08;
+  spherical.phi += (targetSpherical.phi - spherical.phi) * 0.08;
+  spherical.radius += (targetSpherical.radius - spherical.radius) * 0.08;
+
+  const r = spherical.radius;
+  const sinPhi = Math.sin(spherical.phi);
+  camera.position.set(
+    r * sinPhi * Math.sin(spherical.theta),
+    r * Math.cos(spherical.phi),
+    r * sinPhi * Math.cos(spherical.theta)
+  );
+  camera.lookAt(0, 0, 0);
+}
+
+renderer.domElement.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  prevMouse = { x: e.clientX, y: e.clientY };
+});
+window.addEventListener('mouseup', () => isDragging = false);
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const dx = e.clientX - prevMouse.x;
+  const dy = e.clientY - prevMouse.y;
+  targetSpherical.theta -= dx * 0.005;
+  targetSpherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, targetSpherical.phi - dy * 0.005));
+  prevMouse = { x: e.clientX, y: e.clientY };
+});
+renderer.domElement.addEventListener('wheel', (e) => {
+  targetSpherical.radius = Math.max(15, Math.min(70, targetSpherical.radius + e.deltaY * 0.02));
+  e.preventDefault();
+}, { passive: false });
+
+// Touch support
+renderer.domElement.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    isDragging = true;
+    prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+});
+renderer.domElement.addEventListener('touchmove', (e) => {
+  if (!isDragging || e.touches.length !== 1) return;
+  const dx = e.touches[0].clientX - prevMouse.x;
+  const dy = e.touches[0].clientY - prevMouse.y;
+  targetSpherical.theta -= dx * 0.005;
+  targetSpherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, targetSpherical.phi - dy * 0.005));
+  prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  e.preventDefault();
+}, { passive: false });
+renderer.domElement.addEventListener('touchend', () => isDragging = false);
+
+// View presets
+function viewFront() {
+  targetSpherical.theta = 0;
+  targetSpherical.phi = Math.PI / 2;
+  targetSpherical.radius = 36;
+}
+function viewRight() {
+  targetSpherical.theta = Math.PI / 2;
+  targetSpherical.phi = Math.PI / 2;
+  targetSpherical.radius = 36;
+}
+function viewTop() {
+  targetSpherical.theta = 0;
+  targetSpherical.phi = 0.01;
+  targetSpherical.radius = 36;
+}
+function viewIso() {
+  targetSpherical.theta = Math.PI / 4;
+  targetSpherical.phi = Math.PI / 4;
+  targetSpherical.radius = 42;
+}
+
+let shadowsOn = true;
+function toggleShadows() {
+  shadowsOn = !shadowsOn;
+  frontLight.castShadow = shadowsOn;
+  rightLight.castShadow = shadowsOn;
+  topLight.castShadow = shadowsOn;
+  document.getElementById('toggleShadows').textContent = 'Shadows: ' + (shadowsOn ? 'ON' : 'OFF');
+}
+
+// Animation
+function animate() {
+  requestAnimationFrame(animate);
+  updateCamera();
+  renderer.render(scene, camera);
+}
+animate();
+
+// Resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
