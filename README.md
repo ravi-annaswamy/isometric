@@ -8,14 +8,14 @@ A voxel exists only if all three shadow bitmaps agree at that point in space —
 
 A 9x9 grid sculpture casting the letters R, A, G. Built in a single conversation with Claude, where a constraint-propagation bug in the R shadow led to an unexpectedly revealing discussion about how LLMs reason.
 
-- **[re-creating-GEB-sculpture.html](re-creating-GEB-sculpture.html)** — Article: *Compressed Deliberation*
+- **[part1-recreating-GEB-sculpture.html](part1-recreating-GEB-sculpture.html)** — Article: *Compressed Deliberation*
 - **[geb-cover.html](geb-cover.html)** — Interactive 3D renderer (Three.js)
 
 ## Part 2: த, மி, ழ் (Tamil)
 
 A 19x19 grid sculpture casting Tamil letters. Tamil's curved, thin strokes (~15-20% fill) make constraint satisfaction far harder than Latin's thick strokes (~55% fill). Solved by rectangularizing the curves into angular Bauhaus-style forms and building a bitmap editor for iterative human-AI co-design.
 
-- **[sculpting-tamil-3d.html](sculpting-tamil-3d.html)** — Article: *Sculpting Tamil in 3D*
+- **[part2-sculpting-tamil-3d.html](part2-sculpting-tamil-3d.html)** — Article: *Sculpting Tamil in 3D*
 - **[tamil-shadow.html](tamil-shadow.html)** — Interactive 3D renderer (Three.js)
 - **[bitmap-editor.html](bitmap-editor.html)** — Bitmap editor with real-time constraint verification
 
